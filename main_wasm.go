@@ -50,6 +50,11 @@ func processParts(mr *multipart.Reader, attachments *[]attachment) {
 				name = params["filename"]
 			}
 		}
+		if name == "" {
+			if _, params, _ := mime.ParseMediaType(part.Header.Get("Content-Type")); params != nil {
+				name = params["name"]
+			}
+		}
 
 		ct := part.Header.Get("Content-Type")
 		if strings.HasPrefix(ct, "multipart/") {
@@ -61,12 +66,33 @@ func processParts(mr *multipart.Reader, attachments *[]attachment) {
 			continue
 		}
 
-		if data, _ := io.ReadAll(decodeBody(part.Header, part)); data != nil {
-			if name != "" {
-				*attachments = append(*attachments, attachment{name, ct, data, false})
-			} else if strings.HasPrefix(ct, "text/html") {
-				*attachments = append(*attachments, attachment{"", ct, data, true})
+		data, _ := io.ReadAll(decodeBody(part.Header, part))
+		if data == nil {
+			continue
+		}
+
+		if name != "" {
+			cid := strings.Trim(part.Header.Get("Content-ID"), "<>")
+			if cid == "" {
+				cid = name
 			}
+			*attachments = append(*attachments, attachment{cid, ct, data, false})
+		} else if strings.HasPrefix(ct, "text/html") {
+			*attachments = append(*attachments, attachment{"", ct, data, true})
+		} else if strings.HasPrefix(ct, "text/plain") {
+			*attachments = append(*attachments, attachment{"body.txt", ct, data, false})
+		} else if cd := part.Header.Get("Content-Disposition"); cd != "" || part.Header.Get("Content-ID") != "" {
+			ext := ".bin"
+			if strings.HasPrefix(ct, "text/plain") {
+				ext = ".txt"
+			} else if strings.HasPrefix(ct, "image/") {
+				ext = "." + strings.Split(strings.TrimPrefix(ct, "image/"), ";")[0]
+			}
+			cid := strings.Trim(part.Header.Get("Content-ID"), "<>")
+			if cid == "" {
+				cid = "inline"
+			}
+			*attachments = append(*attachments, attachment{cid + ext, ct, data, false})
 		}
 	}
 }

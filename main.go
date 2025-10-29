@@ -58,10 +58,13 @@ func processParts(mr *multipart.Reader, outDir string) {
 		ct := part.Header.Get("Content-Type")
 		cd := part.Header.Get("Content-Disposition")
 		name := part.FileName()
-
 		if name == "" {
 			_, params, _ := mime.ParseMediaType(cd)
 			name = params["filename"]
+		}
+		if name == "" {
+			_, params, _ := mime.ParseMediaType(ct)
+			name = params["name"]
 		}
 
 		if strings.HasPrefix(ct, "multipart/") {
@@ -90,6 +93,31 @@ func processParts(mr *multipart.Reader, outDir string) {
 				fmt.Println("❌ Error saving body.html:", err)
 			} else {
 				fmt.Println("📧 Saved HTML body: body.html")
+			}
+		} else if strings.HasPrefix(ct, "text/plain") {
+			if err := os.WriteFile(filepath.Join(outDir, "body.txt"), data, 0644); err != nil {
+				fmt.Println("❌ Error saving body.txt:", err)
+			} else {
+				fmt.Println("📧 Saved text body: body.txt")
+			}
+		} else if cd != "" || part.Header.Get("Content-ID") != "" {
+			// Inline attachment without filename
+			ext := ".bin"
+			if strings.HasPrefix(ct, "text/plain") {
+				ext = ".txt"
+			} else if strings.HasPrefix(ct, "image/") {
+				ext = strings.TrimPrefix(strings.Split(ct, ";")[0], "image/")
+				ext = "." + ext
+			}
+			cid := strings.Trim(part.Header.Get("Content-ID"), "<>")
+			if cid == "" {
+				cid = "inline"
+			}
+			safeName := filepath.Base(cid) + ext
+			if err := os.WriteFile(filepath.Join(outDir, safeName), data, 0644); err != nil {
+				fmt.Println("❌ Error saving", safeName, ":", err)
+			} else {
+				fmt.Printf("📎 Saved inline: %s (%s)\n", safeName, ct)
 			}
 		}
 	}
