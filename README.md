@@ -2,6 +2,8 @@
 
 🚀 Extract attachments and HTML body from `.eml` files directly in your browser
 
+**[Try it live](https://madzohan.github.io/eml-attachment-extractor/)**
+
 ## Tech Stack
 
 - **TinyGo** → compiles Go to WebAssembly
