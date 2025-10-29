@@ -1,0 +1,1 @@
+Golang (Tinygo) + Wasm + Github Pages = training project
